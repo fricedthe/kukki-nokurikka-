@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>インフレ・クッキークリッカー</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: #2c1d11;
+            color: #fff;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #left-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: #3d281a;
+            padding: 20px;
+            position: relative;
+            box-shadow: 3px 0 10px rgba(0,0,0,0.5);
+            z-index: 2;
+        }
+        #gift-btn {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 2rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        #gift-btn:hover {
+            transform: scale(1.1);
+        }
+        #score-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        #cookie-count {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            font-weight: bold;
+            color: #e3a857;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.6);
+        }
+        #cps-count {
+            font-size: clamp(1rem, 2vw, 1.2rem);
+            color: #bda38f;
+            margin-top: 5px;
+        }
+        #cookie-wrapper {
+            position: relative;
+            width: clamp(200px, 40vw, 350px);
+            height: clamp(200px, 40vw, 350px);
+        }
+        #cookie {
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #d4a373 0%, #a67c52 100%);
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.6), inset 0 -8px 15px rgba(0,0,0,0.4);
+            transition: transform 0.05s;
+            border: 4px solid #8c6239;
+        }
+        #cookie:active {
+            transform: scale(0.95);
+        }
+        /* 簡易的な平坦チョコチップ */
+        .chip {
+            position: absolute;
+            background-color: #4a2c11;
+            border-radius: 50%;
+            width: 12%;
+            height: 12%;
+            box-shadow: inset 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        #right-panel {
+            flex: 1.2;
+            display: flex;
+            flex-direction: column;
+            background-color: #2c1d11;
+            height: 100%;
+        }
+        #panel-title {
+            padding: 15px;
+            font-size: 1.3rem;
+            background-color: #1f140b;
+            text-align: center;
+            border-bottom: 2px solid #3d281a;
+            font-weight: bold;
+            color: #e3a857;
+        }
+        #shop {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #4a3321;
+            margin-bottom: 8px;
+            padding: 12px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            border: 1px solid #5d402b;
+        }
+        .shop-item:hover {
+            background-color: #5d402b;
+        }
+        .shop-item:active {
+            transform: scale(0.98);
+        }
+        .shop-item.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            background-color: #332216 !important;
+        }
+        .item-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .item-name {
+            font-weight: bold;
+            font-size: 1.05rem;
+            color: #fff;
+        }
+        .item-cost {
+            font-size: 0.9rem;
+            color: #e3a857;
+            margin-top: 2px;
+        }
+        .item-count {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #bda38f;
+        }
+        /* ポップアップテキスト */
+        .pop-text {
+            position: absolute;
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 2px 2px 2px rgba(0,0,0,0.8);
+            animation: floatUp 0.8s ease-out forwards;
+            z-index: 10;
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translate(-50%, -50%) translateY(0) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) translateY(-100px) scale(0.8); }
+        }
+        /* モーダル */
+        #modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+            visibility: hidden;
+            opacity: 0;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+        #modal-overlay.active {
+            visibility: visible;
+            opacity: 1;
+        }
+        #modal {
+            background-color: #3d281a;
+            border: 3px solid #e3a857;
+            border-radius: 12px;
+            padding: 25px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        #modal h3 {
+            margin-bottom: 15px;
+            color: #e3a857;
+        }
+        #code-input {
+            width: 100%;
+            padding: 10px;
+            font-size: 1rem;
+            border: 2px solid #5d402b;
+            background-color: #2c1d11;
+            color: #fff;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        #code-input:focus {
+            outline: none;
+            border-color: #e3a857;
+        }
+        .modal-btns {
+            display: flex;
+            gap: 10px;
+        }
+        .modal-btn {
+            flex: 1;
+            padding: 10px;
+            font-size: 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .btn-confirm { background-color: #e3a857; color: #2c1d11; }
+        .btn-cancel { background-color: #735135; color: #fff; }
+        
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #left-panel { height: 45vh; flex: none; }
+            #right-panel { height: 55vh; flex: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="left-panel">
+        <button id="gift-btn" title="コード入力">🎁</button>
+        <div id="score-container">
+            <div id="cookie-count">0 クッキー</div>
+            <div id="cps-count">毎秒: 0</div>
+        </div>
+        <div id="cookie-wrapper">
+            <div id="cookie">
+                <!-- チョコチップ配置 -->
+                <div class="chip" style="top:20%; left:25%;"></div>
+                <div class="chip" style="top:15%; left:55%;"></div>
+                <div class="chip" style="top:35%; left:40%;"></div>
+                <div class="chip" style="top:30%; left:75%;"></div>
+                <div class="chip" style="top:55%; left:20%;"></div>
+                <div class="chip" style="top:50%; left:55%;"></div>
+                <div class="chip" style="top:70%; left:35%;"></div>
+                <div class="chip" style="top:75%; left:65%;"></div>
+                <div class="chip" style="top:55%; left:80%;"></div>
+                <div class="chip" style="top:35%; left:12%;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="right-panel">
+        <div id="panel-title">アップグレード・施設</div>
+        <div id="shop"></div>
+    </div>
+
+    <!-- 暗号入力モーダル -->
+    <div id="modal-overlay">
+        <div id="modal">
+            <h3>暗号コードを入力</h3>
+            <input type="text" id="code-input" placeholder="ここにコードを入力">
+            <div class="modal-btns">
+                <button class="modal-btn btn-cancel" id="btn-close">閉じる</button>
+                <button class="modal-btn btn-confirm" id="btn-submit">送信</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let cookies = 0;
+        let totalCps = 0;
+
+        // 単位定義
+        const UNITS = [
+            { value: 1e39, name: " Duodecillion" },
+            { value: 1e36, name: " Undecillion" },
+            { value: 1e33, name: " Decillion" },
+            { value: 1e30, name: " Nonillion" },
+            { value: 1e27, name: " Octillion" },
+            { value: 1e24, name: " Septillion" },
+            { value: 1e21, name: " Sextillion" },
+            { value: 1e18, name: " Quintillion" },
+            { value: 1e15, name: " Quadrillion" },
+            { value: 1e12, name: " Trillion" },
+            { value: 1e9, name: " Billion" },
+            { value: 1e6, name: " Million" }
+        ];
+
+        function formatNumber(num) {
+            if (num < 1000000) return Math.floor(num).toLocaleString();
+            for (let unit of UNITS) {
+                if (num >= unit.value) {
+                    let rounded = (num / unit.value).toFixed(3);
+                    return parseFloat(rounded) + unit.name;
+                }
+            }
+            return Math.floor(num).toLocaleString();
+        }
+
+        // 施設データ生成 (71種類)
+        const itemNames = [
+            "カーソル", "グランマ", "農場", "鉱山", "工場", "銀行", "神殿", "魔法の塔", "宇宙船", "研究所",
+            "ポータル", "タイムマシン", "反物質凝縮器", "プリズム", "チョコアジト", "分数世界", "チャンスメーカー", "アイドバース", "コトダマ", "「あなた」",
+            "超次元オーブン", "ミクロコスモス", "超ひも結晶", "ナノボット群", "星間抽出機", "思考実体化装置", "ダークエネルギー炉", "銀河コンバータ", "虚空インダクター", "多重宇宙リンク",
+            "因果律ブレーカー", "特異点アクセラレータ", "確率崩壊機", "エーテルコンデンサ", "時空溶接機", "オメガコンプレッサ", "概念彫刻機", "無限マトリクス", "アブソリュートコア", "虚数リアクター",
+            "ネザードライブ", "コスモファーム", "タキオンボイラー", "カオスチャンバー", "クロノグラフ", "神話生成機", "不確定性エンジン", "超対称グラインダー", "次元ホライゾン", "ゼタベーカリー",
+            "真理の門", "エントロピー抽出機", "ボース粒子ミキサー", "暗黒星雲ミル", "高次元カタパルト", "並行世界貯蔵庫", "超立方体プレス", "永久機関ベータ", "万物の理論", "究極特異点",
+            "量子クッキー破砕機", "暗黒物質オーブン", "時空改変プロセッサ", "無限並行宇宙シンジケート", "12連多次元コア"
+        ];
+
+        // 足りない分を自動補填して計71個にする
+        while (itemNames.length < 71) {
+            itemNames.push(`先進型施設第 ${itemNames.length + 1} 世代`);
+        }
+
+        let items = [];
+        let baseCost = 15;
+        let baseCps = 0.2;
+
+        for (let i = 0; i < 71; i++) {
+            items.push({
+                id: i,
+                name: itemNames[i],
+                cost: baseCost,
+                cps: baseCps,
+                count: 0
+            });
+            baseCost *= 3.3; // コストを飛躍的に上昇
+            baseCps *= 3.1;  // 生産力も爆発的に上昇
+        }
+
+        // DOM要素
+        const cookieCountEl = document.getElementById("cookie-count");
+        const cpsCountEl = document.getElementById("cps-count");
+        const cookieEl = document.getElementById("cookie");
+        const cookieWrapper = document.getElementById("cookie-wrapper");
+        const shopEl = document.getElementById("shop");
+        const giftBtn = document.getElementById("gift-btn");
+        const modalOverlay = document.getElementById("modal-overlay");
+        const codeInput = document.getElementById("code-input");
+        const btnClose = document.getElementById("btn-close");
+        const btnSubmit = document.getElementById("btn-submit");
+
+        // 表示の更新
+        function updateUI() {
+            cookieCountEl.innerText = `${formatNumber(cookies)} クッキー`;
+            cpsCountEl.innerText = `毎秒: ${formatNumber(totalCps)}`;
+
+            items.forEach(item => {
+                const btn = document.getElementById(`item-${item.id}`);
+                if (btn) {
+                    const costEl = btn.querySelector(".item-cost");
+                    const countEl = btn.querySelector(".item-count");
+                    costEl.innerText = `コスト: ${formatNumber(item.cost)} | CPS: +${formatNumber(item.cps)}`;
+                    countEl.innerText = item.count;
+
+                    if (cookies >= item.cost) {
+                        btn.classList.remove("disabled");
+                    } else {
+                        btn.classList.add("disabled");
+                    }
+                }
+            });
+        }
+
+        function calculateCps() {
+            totalCps = items.reduce((sum, item) => sum + (item.cps * item.count), 0);
+        }
+
+        // 手動クリック力（CPSの5%をボーナス上乗せ、最低1）
+        function getClickPower() {
+            return Math.max(1, totalCps * 0.05);
+        }
+
+        // クリック処理
+        function clickCookie(clientX, clientY) {
+            const power = getClickPower();
+            cookies += power;
+            createPopText(power, clientX, clientY);
+            updateUI();
+        }
+
+        // テキストポップアップ演出
+        function createPopText(amount, x, y) {
+            const rect = cookieWrapper.getBoundingClientRect();
+            let popX, popY;
+            if (x !== undefined && y !== undefined) {
+                popX = x - rect.left;
+                popY = y - rect.top;
+            } else {
+                popX = rect.width / 2 + (Math.random() * 40 - 20);
+                popY = rect.height / 2 + (Math.random() * 40 - 20);
+            }
+
+            const pop = document.createElement("div");
+            pop.className = "pop-text";
+            pop.innerText = `+${formatNumber(amount)}`;
+            pop.style.left = `${popX}px`;
+            pop.style.top = `${popY}px`;
+            cookieWrapper.appendChild(pop);
+
+            setTimeout(() => pop.remove(), 800);
+        }
+
+        // ショップUIの構築
+        items.forEach(item => {
+            const div = document.createElement("div");
+            div.className = "shop-item disabled";
+            div.id = `item-${item.id}`;
+            div.innerHTML = `
+                <div class="item-info">
+                    <span class="item-name">${item.name}</span>
+                    <span class="item-cost">コスト: ${formatNumber(item.cost)} | CPS: +${formatNumber(item.cps)}</span>
+                </div>
+                <div class="item-count">0</div>
+            `;
+            div.addEventListener("click", () => {
+                if (cookies >= item.cost) {
+                    cookies -= item.cost;
+                    item.count++;
+                    item.cost = Math.ceil(item.cost * 1.15);
+                    calculateCps();
+                    updateUI();
+                }
+            });
+            shopEl.appendChild(div);
+        });
+
+        // クリックイベント
+        cookieEl.addEventListener("mousedown", (e) => {
+            clickCookie(e.clientX, e.clientY);
+        });
+
+        cookieEl.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            clickCookie(touch.clientX, touch.clientY);
+        });
+
+        // キーボード連打＆長押し対応
+        let isSpacePressed = false;
+        let spaceInterval = null;
+
+        window.addEventListener("keydown", (e) => {
+            if (e.code === "Space") {
+                if (document.activeElement === codeInput) return; // 入力中は無効化
+                e.preventDefault();
+                if (!isSpacePressed) {
+                    isSpacePressed = true;
+                    clickCookie();
+                    spaceInterval = setInterval(() => {
+                        clickCookie();
+                    }, 33); // 秒間約30回
+                }
+            }
+        });
+
+        window.addEventListener("keyup", (e) => {
+            if (e.code === "Space") {
+                if (isSpacePressed) {
+                    isSpacePressed = false;
+                    clearInterval(spaceInterval);
+                }
+            }
+        });
+
+        // モーダル管理
+        giftBtn.addEventListener("click", () => {
+            modalOverlay.classList.add("active");
+            codeInput.value = "";
+            codeInput.focus();
+        });
+
+        btnClose.addEventListener("click", () => modalOverlay.classList.remove("active"));
+        
+        function handleCodeSubmit() {
+            const code = codeInput.value.trim();
+            if (code === "muryoucode") {
+                cookies += 100000000;
+                alert("暗号成功！1億クッキーを獲得しました！");
+                modalOverlay.classList.remove("active");
+                updateUI();
+            } else if (code === "admin") {
+                cookies += 1e39; // 1 Duodecillion
+                alert("管理者権限発動！1 Duodecillionクッキーを獲得しました！");
+                modalOverlay.classList.remove("active");
+                updateUI();
+            } else {
+                alert("間違った暗号コードです。");
+            }
+        }
+
+        btnSubmit.addEventListener("click", handleCodeSubmit);
+        codeInput.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") handleCodeSubmit();
+        });
+
+        // メインループ (毎秒30回更新)
+        setInterval(() => {
+            if (totalCps > 0) {
+                cookies += totalCps / 30;
+                updateUI();
+            }
+        }, 1000 / 30);
+
+        updateUI();
+    </script>
+</body>
+</html>
